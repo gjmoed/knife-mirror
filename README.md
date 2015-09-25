@@ -47,10 +47,6 @@ If the requested catagory does not exist, supermarket refuses to accept the cook
 
 So obviously need to revisit that.
 
-Last minute: Just noticed during some final tests, before releasing this first version; if you attempt a ```knife mirror cookbook all``` or ```knife mirror all``` to an 'empty' new fresh supermarket, things will fail.
-Please, as a workaround for now, just mirror a recent version for some cookbook first, as in, ```knife mirror apt -t https://supermarket.your.domain.tld```.
-I'll fix this asap, simply need to add some endpoint checking of course, mea culpa.
-
 ## Requirements
 
 - You need to have Chef Knife working

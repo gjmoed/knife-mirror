@@ -25,6 +25,7 @@ class Chef
       category 'mirror'
 
       deps do
+        require 'chef/cookbook/metadata'
         require 'chef/cookbook_site_streaming_uploader'
       end
 
@@ -75,7 +76,7 @@ class Chef
           ui.info('Done!')
           removed, added = universe_diff(private_universe, community_universe)
           ui.info("We are still missing #{added.size} cookbooks (out of #{community_universe.size}) on our target Supermarket.")
-          ui.info("Though we're not doing anything with these just yet, you should know we have #{removed.size} cookbooks which are no longer present on the Supermarket (source).")
+          ui.info("Though we're not doing anything with these just yet, you should know we have #{removed.size} cookbooks which are no longer present on the Supermarket (source).") if removed.size > 0
           added.sort.each do |cookbook, versions|
             ui.info("Mirroring #{versions.size} version(s) for #{cookbook} cookbook:")
             displayed_before = false
@@ -160,6 +161,15 @@ class Chef
 
       def get_cookbook_meta(cookbook = @name_args[0], api_url = "#{config[:supermarket_site]}/api/v1/cookbooks")
         unauthenticated_get_rest("#{api_url}/#{cookbook}")
+      rescue => e
+        if e.message =~ /404/
+          # Return proper (empty) metadata structure
+          md = Chef::Cookbook::Metadata.new
+          return md.to_hash.merge!('metrics' => { 'downloads' => { 'versions' => {} } })
+        else
+          ui.error("Error during #{cookbook} metadata request (#{e.message}). Increase log verbosity (-VV) for more information.")
+          exit(1)
+        end
       end
 
       def cookbook_deprecated?(cookbookmeta)
