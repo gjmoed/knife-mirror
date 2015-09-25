@@ -233,6 +233,7 @@ class Chef
         cookbookmeta['deprecated'] == true
       end
 
+      # TODO: replace this with the tested lib/util.rb UniverseDiff module.
       def universe_diff(source, target)
         return [nil, target.dup] if source.nil?
         return [source.dup, nil] if target.nil?
@@ -254,6 +255,7 @@ class Chef
         end
       end
 
+      # TODO: replace this with the tested lib/util.rb UniverseDiff module.
       def skip?(obj)
         obj.is_a?(Hash) ? (obj.empty? || %w(location_path download_url).any? { |key| obj.key?(key) }) : obj.nil?
       end
