@@ -1,0 +1,9 @@
+{
+    "average_rating": null,
+    "cookbook": "https://COMMUNITY/api/v1/cookbooks/B",
+    "dependencies": { "xml": ">= 0.0.0" },
+    "file": "https://COMMUNITY/api/v1/cookbooks/B/versions/1.0.0/download",
+    "license": "Apache 2.0",
+    "tarball_file_size": 11197,
+    "version": "1.0.4"
+}

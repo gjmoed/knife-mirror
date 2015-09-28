@@ -63,16 +63,46 @@ class Chef
              long: '--reps',
              description: 'Also process deprecated cookbook(s) replacement(s). (TODO/WIP)'
 
+      #########################################
+      # Dependency injection points
+      #
+      # This gem uses the Chef::CookbookSiteStreamingUploader to post
+      # the cookbook to the chef server, which is difficult to test.
+      # If an uploader is set, it should respond to
+      # post(url, user_id, user_secret_filename, {tarball: , cookbook: })
+      # and return an http response with http_resp.body and code
+      #
+      # TODO all of this should be refactored out to a separate helper
+      # class.
+      
+      def set_override_uploader(uploader)
+        @uploader = uploader
+      end
+
+      def uploader()
+        @uploader || Chef::CookbookSiteStreamingUploader
+      end
+
+      def set_override_print_destination(destination)
+        @printdest = destination
+      end
+
+      def print_destination()
+        @printdest || $stdout
+      end
+      
+      #########################################
+
       def run
         $stdout.sync = true # Avoid possible buffering of some progress dots
         if @name_args[0] == 'all'
           # Mirror all cookbooks from SUPERMARKET_SITE to TARGET_SUPERMARKET_SITE
           ui.info('Mirroring all versions for all cookbooks')
           ui.info("Delaying by #{config[:delay]} seconds per version.") if config[:delay]
-          print "Fetching cookbook index from #{config[:supermarket_site]} (source)... "
+          self.print_destination.print "Fetching cookbook index from #{config[:supermarket_site]} (source)... "
           community_universe = unauthenticated_get_rest("#{config[:supermarket_site]}/universe")
           ui.info('Done!')
-          print "Fetching cookbook index from #{config[:target_site]} (target)... "
+          self.print_destination.print "Fetching cookbook index from #{config[:target_site]} (target)... "
           private_universe = unauthenticated_get_rest("#{config[:target_site]}/universe")
           ui.info('Done!')
           removed, added = universe_diff(private_universe, community_universe)
@@ -91,10 +121,10 @@ class Chef
           # Mirror all versions for a specific cookbook
           ui.info("Mirroring all versions for #{@name_args[0]}.")
           ui.info("Delaying by #{config[:delay]} seconds per version.") if config[:delay]
-          print "Fetching cookbook meta from #{config[:supermarket_site]} (source)... "
+          self.print_destination.print "Fetching cookbook meta from #{config[:supermarket_site]} (source)... "
           cookbookmeta = get_cookbook_meta
           ui.info('Done!')
-          print "Fetching cookbook meta from #{config[:target_site]} (target)... "
+          self.print_destination.print "Fetching cookbook meta from #{config[:target_site]} (target)... "
           target_cookbookmeta = get_cookbook_meta(@name_args[0], "#{config[:target_site]}/api/v1/cookbooks")
           ui.info('Done!')
           ui.info("Processing remaining #{cookbookmeta['metrics']['downloads']['versions'].size - target_cookbookmeta['metrics']['downloads']['versions'].size} cookbook versions:")
@@ -114,7 +144,7 @@ class Chef
           mirror_cookbook
           if config[:deps]
             ui.info('Mirroring dependencies as well...')
-            print "Fetching cookbook index from #{config[:supermarket_site]} (source)... "
+            self.print_destination.print "Fetching cookbook index from #{config[:supermarket_site]} (source)... "
             universe = unauthenticated_get_rest("#{config[:supermarket_site]}/universe")
             ui.info('Done!')
             get_cookbook_version_meta['dependencies'].each do |cookbook, version_constraint|
@@ -135,10 +165,14 @@ class Chef
       def mirror_cookbook(cookbook = @name_args[0], version = 'latest_version', displayed_before = false)
         cookbookmeta = get_cookbook_meta(cookbook, "#{config[:supermarket_site]}/api/v1/cookbooks")
         ui.warn("This cookbook has been deprecated. It has been replaced by #{File.basename(cookbookmeta['replacement'])}.") if cookbook_deprecated?(cookbookmeta) && !displayed_before
-        versionmeta = version == 'latest_version' ? unauthenticated_get_rest(cookbookmeta['latest_version']) : unauthenticated_get_rest("#{config[:supermarket_site]}/api/v1/cookbooks/#{cookbook}/versions/#{version.gsub('.', '_')}")
-        print "Processing version #{versionmeta['version']} "
+        url =
+          (version == 'latest_version' ) ?
+            cookbookmeta['latest_version'] :
+            "#{config[:supermarket_site]}/api/v1/cookbooks/#{cookbook}/versions/#{version.gsub('.', '_')}"
+        versionmeta = unauthenticated_get_rest(url)
+        self.print_destination.print "Processing version #{versionmeta['version']} "
         temp_cookbookfile = unauthenticated_get_rest(versionmeta['file'], true)
-        print '.'
+        self.print_destination.print '.'
         # Need to revisit this, currently Supermarket only support setting the catagory this way :(
         # meta_hash = %w(category external_url source_url issues_url average_rating created_at up_for_adoption foodcritic_failure).map { |param| [param.to_sym, cookbookmeta[param]] }.to_h
         # meta_hash.merge!('deprecated' => true, 'replacement' => "#{config[:target_site]}/api/v1/cookbooks/#{File.basename(cookbookmeta['replacement'])}") if cookbook_deprecated?(cookbookmeta)
@@ -148,14 +182,14 @@ class Chef
         user_id = self.config[:node_name]
         user_secret_filename = self.config[:client_key]
         begin
-          http_resp = Chef::CookbookSiteStreamingUploader.post("#{config[:target_site]}/api/v1/cookbooks", user_id, user_secret_filename, tarball: File.open(temp_cookbookfile.path), cookbook: meta_hash.to_json)
+          http_resp = self.uploader.post("#{config[:target_site]}/api/v1/cookbooks", user_id, user_secret_filename, tarball: File.open(temp_cookbookfile.path), cookbook: meta_hash.to_json)
         rescue => e
           ui.error("Error uploading cookbook #{cookbook} (#{versionmeta['version']}) to the Supermarket at #{config[:target_site]}: #{e.message}. Increase log verbosity (-VV) for more information.")
           Chef::Log.debug("\n#{e.backtrace.join("\n")}")
           config[:keep] ? FileUtils.mv(temp_cookbookfile.path, File.join(config[:download_directory], "#{cookbook}-#{versionmeta['version']}.tar.gz")) : FileUtils.rm_rf(temp_cookbookfile.path)
           exit(1) # Hard exit since this usually hints at trouble reaching the supermarket, no sense in allowing this in some loop...
         end
-        print '.'
+        self.print_destination.print '.'
         if http_resp.code.to_i != 201
           res = Chef::JSONCompat.from_json(http_resp.body) unless http_resp.code.to_i == 500
           ui.info('. Failed :(')

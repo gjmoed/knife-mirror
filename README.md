@@ -54,6 +54,10 @@ So obviously need to revisit that.
 - You need an account on the target supermarket of course
 - This Gem, dohh
 
+If running unit tests:
+- `gem install webmock`
+- `gem install rspec`
+
 You do not need an account on the source/community supermarket.
 
 ## Install

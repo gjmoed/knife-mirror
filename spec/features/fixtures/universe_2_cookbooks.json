@@ -1,0 +1,18 @@
+{
+    "A": {
+        "1.0.0": {
+            "dependencies": {},
+            "download_url": "https://SomeSupermarketSite.com:443/api/v1/cookbooks/A/versions/1.0.0/download",
+            "location_path": "https://SomeSupermarketSite.com:443/api/v1",
+            "location_type": "opscode"
+        }
+    },
+    "B": {
+        "1.0.0": {
+            "dependencies": { "nodejs": ">= 0.0.0" },
+            "download_url": "https://SomeSupermarketSite.com:443/api/v1/cookbooks/B/versions/1.0.0/download",
+            "location_path": "https://SomeSupermarketSite.com:443/api/v1",
+            "location_type": "opscode"
+        }
+    }
+}
