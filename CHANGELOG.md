@@ -1,5 +1,9 @@
 # knife-mirror Change log
 
+## 0.1.2 (2015-09-28)
+
+- process cookbook dependencies, if requested
+
 ## 0.1.1 (2015-09-25)
 
 - do not show orphaned cookbook count if count = 0

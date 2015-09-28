@@ -26,6 +26,7 @@ class Chef
 
       deps do
         require 'chef/cookbook/metadata'
+        require 'chef/version_constraint'
         require 'chef/cookbook_site_streaming_uploader'
       end
 
@@ -56,7 +57,7 @@ class Chef
 
       option :deps,
              long: '--deps',
-             description: 'Also process cookbook(s) dependencies. (TODO/WIP)'
+             description: 'Also process cookbook(s) dependencies.'
 
       option :reps,
              long: '--reps',
@@ -111,6 +112,21 @@ class Chef
           # Mirror just one single cookbook, latest version
           ui.info("Mirroring #{@name_args[0]} (latest version).")
           mirror_cookbook
+          if config[:deps]
+            ui.info('Mirroring dependencies as well...')
+            print "Fetching cookbook index from #{config[:supermarket_site]} (source)... "
+            universe = unauthenticated_get_rest("#{config[:supermarket_site]}/universe")
+            ui.info('Done!')
+            get_cookbook_version_meta['dependencies'].each do |cookbook, version_constraint|
+              universe[cookbook].sort_by { |version, _versionmeta| version.split('.').map(&:to_i) }.reverse!.each do |version, _versionmeta|
+                next unless Chef::VersionConstraint.new(version_constraint).include?(version)
+                ui.info("Most recent version matching constraint (#{version_constraint}) for cookbook #{cookbook}: #{version}")
+                mirror_cookbook(cookbook, version)
+                sleep(config[:delay].to_i) if config[:delay]
+                break
+              end
+            end
+          end
         end
       end
 
@@ -170,6 +186,10 @@ class Chef
           ui.error("Error during #{cookbook} metadata request (#{e.message}). Increase log verbosity (-VV) for more information.")
           exit(1)
         end
+      end
+
+      def get_cookbook_version_meta(cookbook = @name_args[0], version = 'latest_version', api_url = "#{config[:supermarket_site]}/api/v1/cookbooks")
+        version == 'latest_version' ? unauthenticated_get_rest(get_cookbook_meta(cookbook, api_url)[version]) : unauthenticated_get_rest("#{api_url}/#{cookbook}/versions/#{version.gsub('.', '_')}")
       end
 
       def cookbook_deprecated?(cookbookmeta)

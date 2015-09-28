@@ -18,6 +18,7 @@ oh, and, this is my first ever Gem, I don't have a clue what I'm doing...
 - specify source and target Supermarkets
 - save failed cookbook versions
 - configurable delay to ease load on Supermarkets
+- process cookbook direct dependencies as well
 
 Most is based on working with diffs between source and target so we do not waste too many resources.
 
@@ -64,7 +65,7 @@ gem install knife-mirror
 or obtain this source (git clone or whatever) and
 
 ```
-gem build knife-mirror.gemspec; gem install knife-mirror-0.1.0.gem
+gem build knife-mirror.gemspec; gem install knife-mirror-0.1.2.gem
 ```
 
 ## Use
@@ -80,6 +81,12 @@ Then things are really simple, while we still work on more advanced stuff:
 
 ```
 knife mirror apt -t https://supermarket.your.domain.tld
+```
+
+### Only most recent version for a specific cookbook, plus its dependencies
+
+```
+knife mirror apt -t https://supermarket.your.domain.tld --deps
 ```
 
 ### Specific cookbook version
@@ -125,7 +132,6 @@ Wow, still lots to do, lots of wishes :(
 - proper replication of deprecation flag (not honored as part of the cookbook meta upload)
 - proper replication of urls (same reason)
 - replicate (and create) categories?
-- process dependencies
 - process replacement in case we're mirroring a deprecated cookbook
 - some automated testing
 - more/better docs?
