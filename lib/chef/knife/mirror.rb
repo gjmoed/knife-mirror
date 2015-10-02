@@ -16,6 +16,7 @@
 # limitations under the License.
 #
 require 'chef/knife'
+require_relative '../../util.rb'
 
 class Chef
   class Knife
@@ -105,7 +106,9 @@ class Chef
           self.print_destination.print "Fetching cookbook index from #{config[:target_site]} (target)... "
           private_universe = unauthenticated_get_rest("#{config[:target_site]}/universe")
           ui.info('Done!')
-          removed, added = universe_diff(private_universe, community_universe)
+          added = UniverseDiff.calculate_universe_delta(private_universe, community_universe)
+          removed = UniverseDiff.calculate_universe_delta(community_universe, private_universe)
+
           ui.info("We are still missing #{added.size} cookbooks (out of #{community_universe.size}) on our target Supermarket.")
           ui.info("Though we're not doing anything with these just yet, you should know we have #{removed.size} cookbooks which are no longer present on the Supermarket (source).") if removed.size > 0
           added.sort.each do |cookbook, versions|
@@ -233,32 +236,6 @@ class Chef
         cookbookmeta['deprecated'] == true
       end
 
-      # TODO: replace this with the tested lib/util.rb UniverseDiff module.
-      def universe_diff(source, target)
-        return [nil, target.dup] if source.nil?
-        return [source.dup, nil] if target.nil?
-        if source.is_a?(Hash) && target.is_a?(Hash)
-          added = {}
-          removed = {}
-          source_keys = source.keys
-          target_keys = target.keys
-          (source_keys - target_keys).each { |key| removed[key] = source[key].dup }
-          (target_keys - source_keys).each { |key| added[key] = target[key].dup }
-          (source_keys & target_keys).each do |key|
-            nested_removed, nested_added = universe_diff(source[key], target[key])
-            removed[key] = nested_removed unless skip?(nested_removed)
-            added[key] = nested_added unless skip?(nested_added)
-          end
-          [removed, added]
-        elsif source != target
-          [source, target]
-        end
-      end
-
-      # TODO: replace this with the tested lib/util.rb UniverseDiff module.
-      def skip?(obj)
-        obj.is_a?(Hash) ? (obj.empty? || %w(location_path download_url).any? { |key| obj.key?(key) }) : obj.nil?
-      end
     end
   end
 end
