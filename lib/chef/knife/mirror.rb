@@ -132,7 +132,7 @@ class Chef
 
       private
 
-      def mirror_cookbook(cookbook = @name_args[0], version = 'latest_version', displayed_before = false, user_id = Chef::Config[:node_name], user_secret_filename = Chef::Config[:client_key])
+      def mirror_cookbook(cookbook = @name_args[0], version = 'latest_version', displayed_before = false)
         cookbookmeta = get_cookbook_meta(cookbook, "#{config[:supermarket_site]}/api/v1/cookbooks")
         ui.warn("This cookbook has been deprecated. It has been replaced by #{File.basename(cookbookmeta['replacement'])}.") if cookbook_deprecated?(cookbookmeta) && !displayed_before
         versionmeta = version == 'latest_version' ? unauthenticated_get_rest(cookbookmeta['latest_version']) : unauthenticated_get_rest("#{config[:supermarket_site]}/api/v1/cookbooks/#{cookbook}/versions/#{version.gsub('.', '_')}")
@@ -144,6 +144,9 @@ class Chef
         # meta_hash.merge!('deprecated' => true, 'replacement' => "#{config[:target_site]}/api/v1/cookbooks/#{File.basename(cookbookmeta['replacement'])}") if cookbook_deprecated?(cookbookmeta)
         # So for now, we just fix the category :(
         meta_hash = { 'category' => '' }
+
+        user_id = self.config[:node_name]
+        user_secret_filename = self.config[:client_key]
         begin
           http_resp = Chef::CookbookSiteStreamingUploader.post("#{config[:target_site]}/api/v1/cookbooks", user_id, user_secret_filename, tarball: File.open(temp_cookbookfile.path), cookbook: meta_hash.to_json)
         rescue => e
