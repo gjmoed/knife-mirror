@@ -133,8 +133,12 @@ class Chef
       private
 
       def mirror_cookbook(cookbook = @name_args[0], version = 'latest_version', displayed_before = false, user_id = Chef::Config[:node_name], user_secret_filename = Chef::Config[:client_key])
+        version = version.strip()
         cookbookmeta = get_cookbook_meta(cookbook, "#{config[:supermarket_site]}/api/v1/cookbooks")
-        ui.warn("This cookbook has been deprecated. It has been replaced by #{File.basename(cookbookmeta['replacement'])}.") if cookbook_deprecated?(cookbookmeta) && !displayed_before
+        if cookbook_deprecated?(cookbookmeta) && !displayed_before
+          replacement = cookbookmeta['replacement'] ? File.basename(cookbookmeta['replacement']) : 'nil'
+          ui.warn("This cookbook has been deprecated. It has been replaced by #{replacement}.")
+        end
         versionmeta = version == 'latest_version' ? unauthenticated_get_rest(cookbookmeta['latest_version']) : unauthenticated_get_rest("#{config[:supermarket_site]}/api/v1/cookbooks/#{cookbook}/versions/#{version.gsub('.', '_')}")
         print "Processing version #{versionmeta['version']} "
         temp_cookbookfile = unauthenticated_get_rest(versionmeta['file'], true)
@@ -171,8 +175,11 @@ class Chef
       end
 
       def unauthenticated_get_rest(url, raw = false)
-        noauth_rest.sign_on_redirect = false
-        noauth_rest.get_rest(url, raw)
+        if raw
+          noauth_rest.streaming_request(url)
+        else
+          noauth_rest.get(url)
+        end
       end
 
       def get_cookbook_meta(cookbook = @name_args[0], api_url = "#{config[:supermarket_site]}/api/v1/cookbooks")
